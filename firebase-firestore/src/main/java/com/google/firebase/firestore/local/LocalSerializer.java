@@ -177,8 +177,15 @@ public final class LocalSerializer {
       mutations.add(rpcSerializer.decodeMutation(batch.getWrites(i)));
     }
 
-    return new MutationBatch(batchId, localWriteTime, mutations);
+    List<Mutation> baseMutations = new ArrayList<>(count);
+    for (int i = 0; i < batch.getBaseValuesCount(); i++) {
+      mutations.add(rpcSerializer.decodeMutation(batch.getBaseValues(i)));
+    }
+
+    return new MutationBatch(batchId, localWriteTime, baseMutations, mutations);
   }
+
+  // TODO: Serialzie base mutations, but don't write the complete object value
 
   com.google.firebase.firestore.proto.Target encodeQueryData(QueryData queryData) {
     hardAssert(

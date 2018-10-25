@@ -89,6 +89,12 @@ public final class SetMutation extends Mutation {
     return new Document(getKey(), version, value, Document.DocumentState.LOCAL_MUTATIONS);
   }
 
+  @Nullable
+  @Override
+  public FieldMask getAffectedFields() {
+    return null;
+  }
+
   /** Returns the object value to use when setting the document. */
   public ObjectValue getValue() {
     return value;

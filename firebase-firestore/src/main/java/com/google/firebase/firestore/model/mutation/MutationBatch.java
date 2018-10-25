@@ -42,11 +42,13 @@ public final class MutationBatch {
 
   private final int batchId;
   private final Timestamp localWriteTime;
+  private List<Mutation> baseMutations;
   private final List<Mutation> mutations;
 
-  public MutationBatch(int batchId, Timestamp localWriteTime, List<Mutation> mutations) {
+  public MutationBatch(int batchId, Timestamp localWriteTime, List<Mutation> baseMutations, List<Mutation> mutations) {
     this.batchId = batchId;
     this.localWriteTime = localWriteTime;
+    this.baseMutations = baseMutations;
     this.mutations = mutations;
   }
 
@@ -99,6 +101,13 @@ public final class MutationBatch {
     }
 
     MaybeDocument baseDoc = maybeDoc;
+
+    for (int i = 0; i < baseMutations.size(); i++) {
+      Mutation mutation = baseMutations.get(i);
+      if (mutation.getKey().equals(documentKey)) {
+        maybeDoc = mutation.applyToLocalView(maybeDoc, baseDoc, localWriteTime);
+      }
+    }
 
     for (int i = 0; i < mutations.size(); i++) {
       Mutation mutation = mutations.get(i);
@@ -177,7 +186,7 @@ public final class MutationBatch {
 
   /** Converts this batch to a tombstone. */
   public MutationBatch toTombstone() {
-    return new MutationBatch(batchId, localWriteTime, Collections.emptyList());
+    return new MutationBatch(batchId, localWriteTime, baseMutations, Collections.emptyList());
   }
 
   public List<Mutation> getMutations() {

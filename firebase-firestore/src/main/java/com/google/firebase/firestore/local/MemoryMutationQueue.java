@@ -29,8 +29,11 @@ import com.google.firebase.firestore.remote.WriteStream;
 import com.google.firebase.firestore.util.Util;
 import com.google.protobuf.ByteString;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
+
 import javax.annotation.Nullable;
 
 final class MemoryMutationQueue implements MutationQueue {
@@ -54,6 +57,8 @@ final class MemoryMutationQueue implements MutationQueue {
    */
   private final List<MutationBatch> queue;
 
+  private final Map<Integer, List<Mutation>> baseMutations;
+
   /** An ordered mapping between documents and the mutation batch IDs. */
   private ImmutableSortedSet<DocumentReference> batchesByDocumentKey;
 
@@ -75,6 +80,7 @@ final class MemoryMutationQueue implements MutationQueue {
   MemoryMutationQueue(MemoryPersistence persistence) {
     this.persistence = persistence;
     queue = new ArrayList<>();
+    baseMutations = new HashMap<>();
 
     batchesByDocumentKey = new ImmutableSortedSet<>(emptyList(), DocumentReference.BY_KEY);
     nextBatchId = 1;
@@ -143,7 +149,7 @@ final class MemoryMutationQueue implements MutationQueue {
   }
 
   @Override
-  public MutationBatch addMutationBatch(Timestamp localWriteTime, List<Mutation> mutations) {
+  public MutationBatch addMutationBatch(Timestamp localWriteTime, List<Mutation> baseMutations, List<Mutation> mutations) {
     hardAssert(!mutations.isEmpty(), "Mutation batches should not be empty");
 
     int batchId = nextBatchId;
@@ -156,7 +162,8 @@ final class MemoryMutationQueue implements MutationQueue {
           prior.getBatchId() < batchId, "Mutation batchIds must be monotonically increasing order");
     }
 
-    MutationBatch batch = new MutationBatch(batchId, localWriteTime, mutations);
+    MutationBatch batch = new MutationBatch(batchId, localWriteTime, baseMutations, mutations);
+
     queue.add(batch);
 
     // Track references by document key.

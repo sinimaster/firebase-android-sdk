@@ -55,4 +55,7 @@ message WriteBatch {
 
   // The local time at which the write batch was initiated.
   google.protobuf.Timestamp local_write_time = 3;
+
+  // A list of writes to apply. All writes will be applied atomically.
+  repeated google.firestore.v1beta1.Write baseValues = 4;
 }

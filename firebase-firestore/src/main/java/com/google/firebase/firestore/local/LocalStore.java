@@ -14,6 +14,7 @@
 
 package com.google.firebase.firestore.local;
 
+import static com.google.firebase.firestore.model.DocumentCollections.emptyMaybeDocumentMap;
 import static com.google.firebase.firestore.util.Assert.hardAssert;
 import static java.util.Arrays.asList;
 
@@ -28,13 +29,20 @@ import com.google.firebase.firestore.model.Document;
 import com.google.firebase.firestore.model.DocumentKey;
 import com.google.firebase.firestore.model.MaybeDocument;
 import com.google.firebase.firestore.model.SnapshotVersion;
+import com.google.firebase.firestore.model.mutation.FieldMask;
 import com.google.firebase.firestore.model.mutation.Mutation;
 import com.google.firebase.firestore.model.mutation.MutationBatch;
 import com.google.firebase.firestore.model.mutation.MutationBatchResult;
+import com.google.firebase.firestore.model.mutation.PatchMutation;
+import com.google.firebase.firestore.model.mutation.Precondition;
+import com.google.firebase.firestore.model.value.DoubleValue;
+import com.google.firebase.firestore.model.value.ObjectValue;
 import com.google.firebase.firestore.remote.RemoteEvent;
 import com.google.firebase.firestore.remote.TargetChange;
 import com.google.firebase.firestore.util.Logger;
 import com.google.protobuf.ByteString;
+
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -173,17 +181,46 @@ public final class LocalStore {
 
   /** Accepts locally generated Mutations and commits them to storage. */
   public LocalWriteResult writeLocally(List<Mutation> mutations) {
-    Timestamp localWriteTime = Timestamp.now();
     // TODO: Call queryEngine.handleDocumentChange() appropriately.
-    MutationBatch batch =
-        persistence.runTransaction(
-            "Locally write mutations",
-            () -> mutationQueue.addMutationBatch(localWriteTime, mutations));
 
-    Set<DocumentKey> keys = batch.getKeys();
-    ImmutableSortedMap<DocumentKey, MaybeDocument> changedDocuments =
-        localDocuments.getDocuments(keys);
-    return new LocalWriteResult(batch.getBatchId(), changedDocuments);
+    Timestamp localWriteTime = Timestamp.now();
+    Set<DocumentKey> keys = new HashSet<>();
+    for (Mutation mutation: mutations) {
+      keys.add(mutation.getKey());
+    }
+
+    ImmutableSortedMap<DocumentKey, MaybeDocument> existingDocuments = localDocuments.getDocuments(keys);
+
+
+    return persistence.runTransaction(
+            "Locally write mutations",
+            () -> {
+              ImmutableSortedMap<DocumentKey, MaybeDocument> changedDocuments = emptyMaybeDocumentMap();
+
+              List<Mutation> baseMutations = new ArrayList<>();
+
+              for (Mutation mutation : mutations) {
+                // make sure that base doc base doc base doc works
+                MaybeDocument maybeDocument = existingDocuments.get(mutation.getKey());
+                if (maybeDocument instanceof Document) {
+                  FieldMask fieldMask = mutation.getAffectedFields();
+                  if (fieldMask != null) {
+                    baseMutations.add(new PatchMutation(mutation.getKey(), ((Document) maybeDocument).getData(), fieldMask, Precondition.NONE));
+                  }
+                }
+              }
+
+              MutationBatch batch = mutationQueue.addMutationBatch(localWriteTime,baseMutations, mutations);
+              for (DocumentKey key : batch.getKeys()) {
+                MaybeDocument maybeDocument = existingDocuments.get(key);
+                maybeDocument = batch.applyToLocalView(key, maybeDocument);
+                if (maybeDocument != null) {
+                  changedDocuments = changedDocuments.insert(maybeDocument.getKey(), maybeDocument);
+                }
+              }
+              return new LocalWriteResult(batch.getBatchId(), changedDocuments);
+            });
+
   }
 
   /**

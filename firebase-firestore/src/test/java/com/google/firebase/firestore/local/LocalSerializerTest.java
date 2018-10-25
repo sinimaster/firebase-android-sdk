@@ -50,6 +50,8 @@ import org.junit.runner.RunWith;
 import org.robolectric.RobolectricTestRunner;
 import org.robolectric.annotation.Config;
 
+import java.util.Collections;
+
 /** Add a test for serializer. */
 @RunWith(RobolectricTestRunner.class)
 @Config(manifest = Config.NONE)
@@ -75,7 +77,7 @@ public final class LocalSerializerTest {
             com.google.firebase.firestore.model.mutation.Precondition.exists(true));
     Mutation del = deleteMutation("baz/quux");
     Timestamp writeTime = Timestamp.now();
-    MutationBatch model = new MutationBatch(42, writeTime, asList(set, patch, del));
+    MutationBatch model = new MutationBatch(42, writeTime, Collections.emptyList(),  asList(set, patch, del));
 
     Write setProto =
         Write.newBuilder()

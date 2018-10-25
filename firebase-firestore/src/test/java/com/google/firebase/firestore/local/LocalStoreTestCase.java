@@ -66,6 +66,7 @@ import com.google.firebase.firestore.remote.WriteStream;
 import com.google.firebase.firestore.testutil.TestUtil;
 import com.google.protobuf.ByteString;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map.Entry;
 import java.util.Set;
@@ -118,7 +119,7 @@ public abstract class LocalStoreTestCase {
 
   private void writeMutations(List<Mutation> mutations) {
     LocalWriteResult result = localStore.writeLocally(mutations);
-    batches.add(new MutationBatch(result.getBatchId(), Timestamp.now(), mutations));
+    batches.add(new MutationBatch(result.getBatchId(), Timestamp.now(), Collections.emptyList(), mutations));
     lastChanges = result.getChanges();
   }
 
@@ -203,7 +204,7 @@ public abstract class LocalStoreTestCase {
   public void testMutationBatchKeys() {
     SetMutation set1 = setMutation("foo/bar", map("foo", "bar"));
     SetMutation set2 = setMutation("foo/baz", map("foo", "baz"));
-    MutationBatch batch = new MutationBatch(1, Timestamp.now(), asList(set1, set2));
+    MutationBatch batch = new MutationBatch(1, Timestamp.now(), Collections.emptyList(),  asList(set1, set2));
     Set<DocumentKey> keys = batch.getKeys();
     assertEquals(2, keys.size());
   }

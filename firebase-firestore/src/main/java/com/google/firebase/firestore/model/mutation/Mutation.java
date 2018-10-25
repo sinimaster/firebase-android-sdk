@@ -148,4 +148,7 @@ public abstract class Mutation {
       return SnapshotVersion.NONE;
     }
   }
+
+  @Nullable
+  public abstract FieldMask getAffectedFields();
 }
